@@ -1,0 +1,22 @@
+{
+  "name": "GEN-Z BIO",
+  "short_name": "GenZBio",
+  "description": "The Ultimate Futuristic Link-in-Bio Universe",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#050816",
+  "theme_color": "#7C3AED",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://api.dicebear.com/7.x/bottts/png?seed=genzbio&size=192",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://api.dicebear.com/7.x/bottts/png?seed=genzbio&size=512",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
