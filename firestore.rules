@@ -1,0 +1,85 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (getUserData().role == 'admin' || getUserData().role == 'super_admin');
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() && getUserData().role == 'super_admin';
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      // Allow creation during signup, or modification if owner or admin
+      allow create: if isAuthenticated();
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    // Bios collection
+    match /bios/{bioId} {
+      allow read: if true; // Publicly viewable
+      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
+      allow update: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || isSuperAdmin());
+    }
+
+    // Messages (Anonymous messages sent to bio page)
+    match /messages/{messageId} {
+      allow read: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || resource.data.receiverId == request.auth.uid || isAdmin());
+      allow create: if true; // Any anonymous user can leave a message
+      allow update, delete: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || resource.data.receiverId == request.auth.uid || isAdmin());
+    }
+
+    // Guestbook (Signatures left on bio page)
+    match /guestbook/{guestbookId} {
+      allow read: if true; // Publicly readable
+      allow create: if true; // Any visitor can sign guestbook
+      allow update, delete: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || isAdmin());
+    }
+
+    // Verification Badges
+    match /verification_badges/{badgeId} {
+      allow read: if true; // Badges are public
+      allow write: if isAdmin(); // Only admins can create/update badges
+    }
+
+    // Verification Logs
+    match /verification_logs/{logId} {
+      allow read, write: if isAdmin(); // Only admins can audit logs
+    }
+
+    // AI Bios and AI Images logging
+    match /ai_bios/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    match /ai_images/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Site settings
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+  }
+}
