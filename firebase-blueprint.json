@@ -1,0 +1,259 @@
+{
+  "entities": {
+    "user": {
+      "title": "User",
+      "description": "Premium registered Gen-Z BIO user",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The unique user UID from Firebase Auth" },
+        "email": { "type": "string", "description": "Verified user email address" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "moderator", "admin", "super_admin"], "description": "Primary administrative access tier" },
+        "roles": { "type": "array", "description": "List of functional authorization roles assigned" },
+        "banned": { "type": "boolean", "description": "Whether the user account is suspended" },
+        "verified": { "type": "boolean", "description": "Whether the user is verified by the Super Admin" },
+        "verificationBadgeId": { "type": "string", "description": "ID of the assigned verification badge" },
+        "verificationIcon": { "type": "string", "description": "URL of the badge icon displayed next to the username" },
+        "verifiedAt": { "type": "string", "description": "Timestamp when verification was updated" },
+        "verifiedBy": { "type": "string", "description": "Super admin UID who verified the user" }
+      },
+      "required": ["userId", "email"]
+    },
+    "bio": {
+      "title": "Bio Page",
+      "description": "Dynamic bio landing page of a creator",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique Bio ID" },
+        "ownerId": { "type": "string", "description": "UID of the user who owns this bio" },
+        "username": { "type": "string", "description": "Unique slug for URL generation (e.g. ahmed)" },
+        "displayName": { "type": "string", "description": "Display name shown on profile" },
+        "description": { "type": "string", "description": "Profile Bio or Tagline" },
+        "avatarUrl": { "type": "string" },
+        "coverUrl": { "type": "string" },
+        "location": { "type": "string" },
+        "website": { "type": "string" },
+        "verified": { "type": "boolean" },
+        "profileMusic": { "type": "string", "description": "Embed sound link or Spotify URI" },
+        "themeId": { "type": "string" },
+        "customBg": { "type": "string", "description": "Optional custom background layout/gradient" },
+        "published": { "type": "boolean" },
+        "archived": { "type": "boolean" },
+        "visitorCount": { "type": "integer" },
+        "emojiReactions": { "type": "object" },
+        "blocks": { "type": "array", "description": "Dynamic list of nested link and content blocks" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerId", "username", "displayName"]
+    },
+    "link": {
+      "title": "Link Track",
+      "description": "Optional link item collections for separate tracking",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "bioId": { "type": "string" },
+        "url": { "type": "string" },
+        "title": { "type": "string" },
+        "platform": { "type": "string" },
+        "clicks": { "type": "integer" },
+        "visible": { "type": "boolean" },
+        "animation": { "type": "string" },
+        "order": { "type": "integer" }
+      },
+      "required": ["id", "bioId", "url", "title"]
+    },
+    "theme": {
+      "title": "Theme Design",
+      "description": "Theme marketplace styles and layout configurations",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "bgClass": { "type": "string" },
+        "textColor": { "type": "string" },
+        "btnClass": { "type": "string" },
+        "fontFamily": { "type": "string" },
+        "accentColor": { "type": "string" },
+        "creator": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    },
+    "analytic": {
+      "title": "Analytic Metric",
+      "description": "Performance tracking records for views/clicks",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "bioId": { "type": "string" },
+        "linkId": { "type": "string" },
+        "type": { "type": "string", "enum": ["view", "click"] },
+        "country": { "type": "string" },
+        "device": { "type": "string" },
+        "browser": { "type": "string" },
+        "referrer": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "bioId", "type", "timestamp"]
+    },
+    "notification": {
+      "title": "Notification Item",
+      "description": "User dashboard notifications and platform updates",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "title", "createdAt"]
+    },
+    "guestbook": {
+      "title": "Guestbook Entry",
+      "description": "Visitor text greetings or shoutouts on a bio",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "bioId": { "type": "string" },
+        "name": { "type": "string" },
+        "message": { "type": "string" },
+        "approved": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "bioId", "name", "message", "createdAt"]
+    },
+    "message": {
+      "title": "Anonymous Message",
+      "description": "Anonymous suggestions and Q&A entries left by visitors",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "bioId": { "type": "string" },
+        "content": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "bioId", "content", "createdAt"]
+    },
+    "story": {
+      "title": "Creator Story",
+      "description": "Temporary 24-hour video/picture update of a bio owner",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "bioId": { "type": "string" },
+        "mediaUrl": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "expiresAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "bioId", "mediaUrl", "createdAt", "expiresAt"]
+    },
+    "setting": {
+      "title": "User Configurations",
+      "description": "Settings parameters for the platform interface",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "language": { "type": "string" },
+        "rtl": { "type": "boolean" }
+      },
+      "required": ["id", "userId"]
+    },
+    "ai_image": {
+      "title": "AI Image Generation",
+      "description": "Metadata for AI generated profile images",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "prompt": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "imageUrl", "prompt", "createdAt"]
+    },
+    "ai_bio": {
+      "title": "AI Bio Generation",
+      "description": "Generated AI bios saved by user",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "bio": { "type": "string" },
+        "tone": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "bio", "tone", "createdAt"]
+    },
+    "verification_log": {
+      "title": "Verification Log",
+      "description": "Audit trails for verification changes made by Super Admins",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "ID of the user verified or removed" },
+        "adminId": { "type": "string", "description": "UID of the super admin who performed the action" },
+        "action": { "type": "string", "enum": ["verified", "removed"], "description": "Verification action taken" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp when the change was logged" }
+      },
+      "required": ["userId", "adminId", "action", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "user" },
+      "description": "Registered user profile details"
+    },
+    "/bios/{bioId}": {
+      "schema": { "$ref": "bio" },
+      "description": "Bio landing pages created by users"
+    },
+    "/links/{linkId}": {
+      "schema": { "$ref": "link" },
+      "description": "Individual link properties"
+    },
+    "/themes/{themeId}": {
+      "schema": { "$ref": "theme" },
+      "description": "Theme models loaded in builder"
+    },
+    "/analytics/{analyticId}": {
+      "schema": { "$ref": "analytic" },
+      "description": "Platform performance tracking records"
+    },
+    "/notifications/{notificationId}": {
+      "schema": { "$ref": "notification" },
+      "description": "Notifications triggered for user review"
+    },
+    "/guestbook/{guestbookId}": {
+      "schema": { "$ref": "guestbook" },
+      "description": "Messages posted to creator's profile page"
+    },
+    "/messages/{messageId}": {
+      "schema": { "$ref": "message" },
+      "description": "Anonymous inbox messages for the creator"
+    },
+    "/stories/{storyId}": {
+      "schema": { "$ref": "story" },
+      "description": "Ephemeral 24 hour statuses"
+    },
+    "/settings/{settingId}": {
+      "schema": { "$ref": "setting" },
+      "description": "User preference configurations"
+    },
+    "/ai_images/{imageId}": {
+      "schema": { "$ref": "ai_image" },
+      "description": "Generated AI profile images saved by user"
+    },
+    "/ai_bios/{bioId}": {
+      "schema": { "$ref": "ai_bio" },
+      "description": "Generated AI profile bios saved by user"
+    },
+    "/verification_logs/{logId}": {
+      "schema": { "$ref": "verification_log" },
+      "description": "Logs tracking verification updates"
+    }
+  }
+}

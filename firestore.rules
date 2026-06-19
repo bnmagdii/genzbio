@@ -1,85 +1,161 @@
 rules_version = '2';
-
 service cloud.firestore {
-  match /databases/{database}/documents {
+ match /databases/{database}/documents {
 
-    // Helper functions
-    function isAuthenticated() {
+    // Global Safety Net: default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Common Helpers
+    function isSignedIn() {
       return request.auth != null;
     }
 
     function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
+      return isSignedIn() && request.auth.uid == userId;
     }
 
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
     function isAdmin() {
-      return isAuthenticated() && 
-        (getUserData().role == 'admin' || getUserData().role == 'super_admin');
+      return isSignedIn() && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin' ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'moderator' ||
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.roles != null &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.roles.hasAny(['admin', 'super_admin', 'moderator']))
+      );
     }
 
     function isSuperAdmin() {
-      return isAuthenticated() && getUserData().role == 'super_admin';
+      return isSignedIn() && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin' ||
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.roles != null &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.roles.hasAny(['super_admin']))
+      );
     }
 
-    // Users collection
+    // 1. Users Collection
     match /users/{userId} {
-      allow read: if isAuthenticated();
-      // Allow creation during signup, or modification if owner or admin
-      allow create: if isAuthenticated();
-      allow update: if isOwner(userId) || isAdmin();
-      allow delete: if isSuperAdmin();
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      // Admins/Super Admins can write general fields; but ONLY Super Admins can write roles, bans, or verification badges
+      allow write: if isSuperAdmin() || (
+        isOwner(userId) && (
+          resource == null ||
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'roles', 'verified', 'verificationBadgeId', 'verificationIcon', 'verifiedAt', 'verifiedBy', 'banned'])
+        )
+      ) || (
+        isAdmin() && (
+          resource != null &&
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['verified', 'verificationBadgeId', 'verificationIcon', 'verifiedAt', 'verifiedBy'])
+        )
+      );
     }
 
-    // Bios collection
+    // 2. Bios Collection
     match /bios/{bioId} {
-      allow read: if true; // Publicly viewable
-      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
-      allow update: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || isAdmin());
-      allow delete: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || isSuperAdmin());
+      allow read: if true; // Public access to view bios
+
+      allow create: if isSignedIn() 
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.id == bioId
+        && isValidId(bioId)
+        && request.resource.data.username is string 
+        && request.resource.data.username.size() >= 2
+        && request.resource.data.username.size() <= 40;
+
+      allow update: if isSuperAdmin() || isAdmin()
+        || (isSignedIn() && resource.data.ownerId == request.auth.uid && request.resource.data.ownerId == request.auth.uid)
+        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['visitorCount', 'emojiReactions']);
+
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.ownerId == request.auth.uid);
     }
 
-    // Messages (Anonymous messages sent to bio page)
-    match /messages/{messageId} {
-      allow read: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || resource.data.receiverId == request.auth.uid || isAdmin());
-      allow create: if true; // Any anonymous user can leave a message
-      allow update, delete: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || resource.data.receiverId == request.auth.uid || isAdmin());
-    }
-
-    // Guestbook (Signatures left on bio page)
-    match /guestbook/{guestbookId} {
-      allow read: if true; // Publicly readable
-      allow create: if true; // Any visitor can sign guestbook
-      allow update, delete: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || isAdmin());
-    }
-
-    // Verification Badges
-    match /verification_badges/{badgeId} {
-      allow read: if true; // Badges are public
-      allow write: if isAdmin(); // Only admins can create/update badges
-    }
-
-    // Verification Logs
-    match /verification_logs/{logId} {
-      allow read, write: if isAdmin(); // Only admins can audit logs
-    }
-
-    // AI Bios and AI Images logging
-    match /ai_bios/{docId} {
-      allow read, write: if isAuthenticated();
-    }
-    
-    match /ai_images/{docId} {
-      allow read, write: if isAuthenticated();
-    }
-
-    // Site settings
-    match /settings/{docId} {
+    // 3. Links Collection
+    match /links/{linkId} {
       allow read: if true;
-      allow write: if isSuperAdmin();
+      allow write: if isAdmin() || (isSignedIn() && (resource == null || resource.data.ownerId == request.auth.uid) && request.resource.data.ownerId == request.auth.uid);
+    }
+
+    // 4. Analytics Collection
+    match /analytics/{analyticId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.ownerId == request.auth.uid);
+      allow create: if true; 
+      allow update, delete: if false;
+    }
+
+    // 5. Notifications Collection
+    match /notifications/{notificationId} {
+      allow read, update, delete: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isSignedIn();
+    }
+
+    // 6. Themes Collection
+    match /themes/{themeId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    // 7. Messages Collection
+    match /messages/{messageId} {
+      allow read, delete: if isAdmin() || (isSignedIn() && resource.data.ownerId == request.auth.uid);
+      allow create: if true; 
+    }
+
+    // 8. Guestbook Collection
+    match /guestbook/{guestbookId} {
+      allow read: if true;
+      allow create: if true; 
+      allow update, delete: if isAdmin() || (isSignedIn() && (resource.data.ownerId == request.auth.uid || resource.data.userId == request.auth.uid));
+    }
+
+    // 9. Stories Collection
+    match /stories/{storyId} {
+      allow read: if true;
+      allow create: if isAdmin() || (isSignedIn() && request.resource.data.ownerId == request.auth.uid);
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.ownerId == request.auth.uid);
+    }
+
+    // 10. Settings Collection
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin() || (isSignedIn() && (resource == null || resource.data.userId == request.auth.uid) && request.resource.data.userId == request.auth.uid);
+    }
+
+    // 11. Custom Verification Badges Collection
+    match /verification_badges/{badgeId} {
+      allow read: if true;
+      allow create, update, delete: if isSuperAdmin() || isAdmin();
+    }
+
+    // 12. Security Reports Collection
+    match /reports/{reportId} {
+      allow read, create: if isSignedIn();
+      allow update, delete: if isAdmin();
+    }
+
+    // 13. AI Generated Images
+    match /ai_images/{imageId} {
+      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if false;
+    }
+
+    // 14. AI Generated Bios
+    match /ai_bios/{bioId} {
+      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if false;
+    }
+
+    // 15. Verification Action Logs Collection
+    match /verification_logs/{logId} {
+      allow read, create: if isSuperAdmin();
+      allow update, delete: if false;
     }
   }
 }

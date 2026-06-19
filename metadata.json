@@ -1,0 +1,6 @@
+{
+  "name": "GEN-Z BIO",
+  "description": "A beautiful, premium Link-in-Bio SaaS platform for Generation Z creators, freelancers, gamers, and modern agencies to customize unlimited profiles.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
